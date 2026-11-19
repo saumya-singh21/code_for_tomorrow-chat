@@ -1,0 +1,31 @@
+CREATE DATABASE IF NOT EXISTS chat_app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE chat_app;
+
+CREATE TABLE IF NOT EXISTS users (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name       VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS chats (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  pair_key   VARCHAR(32)  NOT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_chats_pair_key (pair_key)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS chat_members (
+  chat_id   INT UNSIGNED NOT NULL,
+  user_id   INT UNSIGNED NOT NULL,
+  joined_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (chat_id, user_id),
+  KEY idx_chat_members_user (user_id),
+  CONSTRAINT fk_chat_members_chat FOREIGN KEY (chat_id) REFERENCES chats (id) ON DELETE CASCADE,
+  CONSTRAINT fk_chat_members_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO users (name)
+SELECT * FROM (SELECT 'Alice' AS name UNION ALL SELECT 'Bob' UNION ALL SELECT 'Charlie') AS seed
+WHERE NOT EXISTS (SELECT 1 FROM users);

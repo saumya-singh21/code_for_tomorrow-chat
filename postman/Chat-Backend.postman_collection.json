@@ -1,0 +1,189 @@
+{
+  "info": {
+    "name": "Chat Backend (MySQL + Firestore)",
+    "description": "Run requests in order: 1 -> 6. chatId and messageId are saved automatically by test scripts. Seed users 1, 2, 3 come from sql/schema.sql.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "userAId", "value": "1" },
+    { "key": "userBId", "value": "2" },
+    { "key": "chatId", "value": "" },
+    { "key": "messageId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Create or Get Chat",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('chatId returned', () => pm.expect(body.chatId).to.be.a('number'));",
+              "pm.collectionVariables.set('chatId', body.chatId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userAId\": {{userAId}},\n  \"userBId\": {{userBId}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/chat/create",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "create"]
+        }
+      }
+    },
+    {
+      "name": "2. Send Message",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('message has id and timestamp', () => {",
+              "  pm.expect(body.id).to.be.a('string');",
+              "  pm.expect(body.timestamp).to.be.a('string');",
+              "});",
+              "pm.collectionVariables.set('messageId', body.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"senderId\": {{userAId}},\n  \"text\": \"Hello from Postman!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/chat/{{chatId}}/message/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "{{chatId}}", "message", "send"]
+        }
+      }
+    },
+    {
+      "name": "3. Get Messages",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const { messages } = pm.response.json();",
+              "pm.test('messages ordered by timestamp (ascending)', () => {",
+              "  for (let i = 1; i < messages.length; i++) {",
+              "    pm.expect(new Date(messages[i].timestamp) >= new Date(messages[i - 1].timestamp)).to.be.true;",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/chat/{{chatId}}/messages?limit=50",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "{{chatId}}", "messages"],
+          "query": [{ "key": "limit", "value": "50" }]
+        }
+      }
+    },
+    {
+      "name": "4. Mark Message Read",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('receipt returned', () => pm.expect(pm.response.json().readAt).to.be.a('string'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": {{userBId}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/chat/{{chatId}}/message/{{messageId}}/read",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "{{chatId}}", "message", "{{messageId}}", "read"]
+        }
+      }
+    },
+    {
+      "name": "5. Update Last Seen Message",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('lastSeen returned', () => pm.expect(pm.response.json().messageId).to.eql(pm.collectionVariables.get('messageId')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": {{userBId}},\n  \"messageId\": \"{{messageId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/chat/{{chatId}}/lastseen",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "{{chatId}}", "lastseen"]
+        }
+      }
+    },
+    {
+      "name": "6. List User Chats",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('chats is an array', () => pm.expect(pm.response.json().chats).to.be.an('array'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/user/{{userAId}}/chats",
+          "host": ["{{baseUrl}}"],
+          "path": ["user", "{{userAId}}", "chats"]
+        }
+      }
+    }
+  ]
+}
